@@ -1,0 +1,58 @@
+# Gradle
+.gradle
+/build
+/app/build
+
+# IntelliJ/Android Studio
+*.iml
+.idea/
+/local.properties
+
+# Kotlin
+.kotlin
+
+# Python (Chaquopy)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Captures and Native Build
+/captures
+.externalNativeBuild
+.cxx
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets/Env
+.env
+local.properties
+

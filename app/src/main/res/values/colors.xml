@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Brand Colors -->
+    <color name="primary">#6C63FF</color>
+    <color name="primary_variant">#5A52D5</color>
+    <color name="secondary">#03DAC5</color>
+    <color name="secondary_variant">#018786</color>
+
+    <!-- Background and Surface Colors -->
+    <color name="background">#FAFAFA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F5F5F5</color>
+    <color name="error">#B00020</color>
+
+    <!-- Text Colors -->
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_secondary">#000000</color>
+    <color name="on_background">#212121</color>
+    <color name="on_surface">#212121</color>
+    <color name="on_surface_variant">#757575</color>
+    <color name="on_error">#FFFFFF</color>
+
+    <!-- Basic Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Platform Colors -->
+    <color name="youtube_red">#FF0000</color>
+    <color name="facebook_blue">#1877F2</color>
+    <color name="tiktok_black">#000000</color>
+    <color name="instagram_pink">#E1306C</color>
+</resources>

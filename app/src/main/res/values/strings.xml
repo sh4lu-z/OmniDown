@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">OmniDown</string>
+    <string name="paste_link_hint">Paste link here...</string>
+    <string name="btn_paste">Paste</string>
+    <string name="btn_analyze">Check Link</string>
+    <string name="btn_download">Start Download</string>
+    <string name="analyzing_text">Analyzing...</string>
+    <string name="supported_platforms">Supported: YT, FB, TikTok, IG</string>
+</resources>

@@ -1,7 +1,7 @@
 import yt_dlp
 import json
 
-def get_video_info(url, ffmpeg_location=None):
+def get_video_info(url):
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -12,9 +12,6 @@ def get_video_info(url, ffmpeg_location=None):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
     }
-    import os
-    if ffmpeg_location and os.path.exists(ffmpeg_location):
-        ydl_opts['ffmpeg_location'] = ffmpeg_location
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -44,23 +41,24 @@ def get_video_info(url, ffmpeg_location=None):
                     
                     if res not in formats_dict or score > formats_dict.get(res, {}).get('score', -1):
                         has_audio = acodec != 'none'
-                        fid = format_id if has_audio else format_id + '+bestaudio'
                         label = f"{res} [HD]" if not has_audio else f"{res}"
                         
                         formats_dict[res] = {
-                            'id': fid,
+                            'id': format_id,
                             'res': label,
                             'ext': 'mp4',
-                            'score': score
+                            'score': score,
+                            'needs_merge': not has_audio
                         }
                         
             sorted_formats = sorted(formats_dict.values(), key=lambda x: int(x['res'].split('p')[0]), reverse=True)
-            result['formats'] = [{'format_id': f['id'], 'resolution': f['res'], 'ext': f['ext']} for f in sorted_formats]
+            result['formats'] = [{'format_id': f['id'], 'resolution': f['res'], 'ext': f['ext'], 'needs_merge': f.get('needs_merge', False)} for f in sorted_formats]
             
             result['formats'].append({
                 'format_id': 'bestaudio',
                 'resolution': 'Audio Only',
-                'ext': 'm4a'
+                'ext': 'm4a',
+                'needs_merge': False
             })
             
             return json.dumps({"status": "success", "data": result})
@@ -68,7 +66,7 @@ def get_video_info(url, ffmpeg_location=None):
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
-def download_video(url, output_path, format_id, progress_callback=None, ffmpeg_location=None):
+def download_video(url, output_path, format_id, filename_override=None, progress_callback=None):
     def progress_hook(d):
         if d['status'] == 'downloading':
             percent_str = d.get('_percent_str', '0%').replace('\x1b[0;94m', '').replace('\x1b[0m', '').strip()
@@ -84,7 +82,7 @@ def download_video(url, output_path, format_id, progress_callback=None, ffmpeg_l
                 progress_callback.invoke("100%|Finished|Done")
 
     ydl_opts = {
-        'outtmpl': f'{output_path}/%(title)s.%(ext)s',
+        'outtmpl': f'{output_path}/{filename_override}' if filename_override else f'{output_path}/%(title)s.%(ext)s',
         'replace_in_metadata': [('title', r'(?i)[#@]\S+', '')],
         'progress_hooks': [progress_hook],
         'quiet': True,
@@ -97,22 +95,22 @@ def download_video(url, output_path, format_id, progress_callback=None, ffmpeg_l
         'retries': 15,
         'fragment_retries': 15,
         'continuedl': True,
-        'merge_output_format': 'mp4',
     }
-    
-    import os
-    if ffmpeg_location and os.path.exists(ffmpeg_location):
-        ydl_opts['ffmpeg_location'] = ffmpeg_location
     
     if format_id == 'bestaudio':
         ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio/best'
     else:
-        ydl_opts['format'] = f"{format_id}/best"
+        ydl_opts['format'] = format_id
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info_dict)
-        return json.dumps({"status": "success", "message": "Download complete", "filename": filename})
+            title = info_dict.get('title', 'Unknown Title')
+            
+            if filename_override:
+                filename = f"{output_path}/{filename_override}"
+                
+        return json.dumps({"status": "success", "message": "Download complete", "filename": filename, "title": title})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})

@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     private var currentUrl = ""
     private var lastDownloadedFilePath: String? = null
 
-    data class FormatInfo(val formatId: String, val resolution: String, val ext: String) {
+    data class FormatInfo(val formatId: String, val resolution: String, val ext: String, val needsMerge: Boolean = false) {
         override fun toString(): String = "$resolution ($ext)"
     }
 
@@ -134,8 +134,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val py = Python.getInstance()
                 val module = py.getModule("downloader")
-                val ffmpegPath = applicationInfo.nativeLibraryDir + "/libffmpeg.so"
-                val resultJson = module.callAttr("get_video_info", url, ffmpegPath).toString()
+                val resultJson = module.callAttr("get_video_info", url).toString()
                 
                 withContext(Dispatchers.Main) {
                     handleAnalyzeResult(resultJson)
@@ -166,7 +165,8 @@ class MainActivity : AppCompatActivity() {
                     formatList.add(FormatInfo(
                         formatObj.getString("format_id"),
                         formatObj.getString("resolution"),
-                        formatObj.getString("ext")
+                        formatObj.getString("ext"),
+                        formatObj.optBoolean("needs_merge", false)
                     ))
                 }
 
@@ -267,7 +267,6 @@ class MainActivity : AppCompatActivity() {
             try {
                 val py = Python.getInstance()
                 val module = py.getModule("downloader")
-                val ffmpegPath = applicationInfo.nativeLibraryDir + "/libffmpeg.so"
                 
                 val callback = object : ProgressCallback {
                     override fun invoke(progressStr: String) {
@@ -291,34 +290,97 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 
-                val resultJson = module.callAttr("download_video", currentUrl, downloadDir.absolutePath, selectedFormat.formatId, callback, ffmpegPath).toString()
-                
-                withContext(Dispatchers.Main) {
-                    try {
-                        val json = JSONObject(resultJson)
-                        if (json.getString("status") == "success") {
-                            val savedPath = json.optString("filename", downloadDir.absolutePath)
-                            lastDownloadedFilePath = savedPath
+                if (selectedFormat.needsMerge) {
+                    runOnUiThread { tvProgressStatus.text = "Downloading Video Part..." }
+                    val tempVidName = "temp_video.mp4"
+                    val tempAudName = "temp_audio.m4a"
+                    
+                    val vidResJson = module.callAttr("download_video", currentUrl, downloadDir.absolutePath, selectedFormat.formatId, tempVidName, callback).toString()
+                    val vidJson = JSONObject(vidResJson)
+                    
+                    if (vidJson.getString("status") == "success") {
+                        val title = vidJson.optString("title", "OmniDown_HD").replace("/", "_")
+                        
+                        runOnUiThread { tvProgressStatus.text = "Downloading Audio Part..." }
+                        val audResJson = module.callAttr("download_video", currentUrl, downloadDir.absolutePath, "bestaudio", tempAudName, callback).toString()
+                        val audJson = JSONObject(audResJson)
+                        
+                        if (audJson.getString("status") == "success") {
+                            runOnUiThread { tvProgressStatus.text = "Merging HQ Video & Audio..." }
+                            
+                            val vFile = File(downloadDir, tempVidName)
+                            val aFile = File(downloadDir, tempAudName)
+                            val finalFile = File(downloadDir, "$title.mp4")
+                            
+                            val session = com.arthenica.ffmpegkit.FFmpegKit.execute("-i \"${vFile.absolutePath}\" -i \"${aFile.absolutePath}\" -c copy \"${finalFile.absolutePath}\"")
+                            
+                            vFile.delete()
+                            aFile.delete()
+                            
+                            if (com.arthenica.ffmpegkit.ReturnCode.isSuccess(session.returnCode)) {
+                                withContext(Dispatchers.Main) {
+                                    progressBar.progress = 100
+                                    tvProgressStatus.text = "Download Complete!"
+                                    tvProgressDetails.text = "Saved to:\n${finalFile.absolutePath}"
+                                    lastDownloadedFilePath = finalFile.absolutePath
+                                    btnOpenFile.visibility = View.VISIBLE
+                                    
+                                    try {
+                                        MediaScannerConnection.scanFile(this@MainActivity, arrayOf(finalFile.absolutePath), null, null)
+                                    } catch (e: Exception) {}
+                                    Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    tvProgressStatus.text = "Merge Failed!"
+                                    tvProgressDetails.text = session.failStackTrace ?: "Unknown error"
+                                    Toast.makeText(this@MainActivity, "Merge Failed", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                tvProgressStatus.text = "Audio Download Failed"
+                                tvProgressDetails.text = audJson.getString("message")
+                                Toast.makeText(this@MainActivity, "Error: ${audJson.getString("message")}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            tvProgressStatus.text = "Video Download Failed"
+                            tvProgressDetails.text = vidJson.getString("message")
+                            Toast.makeText(this@MainActivity, "Error: ${vidJson.getString("message")}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    val resultJson = module.callAttr("download_video", currentUrl, downloadDir.absolutePath, selectedFormat.formatId, null, callback).toString()
+                    
+                    withContext(Dispatchers.Main) {
+                        try {
+                            val json = JSONObject(resultJson)
+                            if (json.getString("status") == "success") {
+                                val savedPath = json.optString("filename", downloadDir.absolutePath)
+                                lastDownloadedFilePath = savedPath
+                                progressBar.progress = 100
+                                tvProgressStatus.text = "Download Complete!"
+                                tvProgressDetails.text = "Saved to:\n$savedPath"
+                                btnOpenFile.visibility = View.VISIBLE
+                                
+                                try {
+                                    MediaScannerConnection.scanFile(this@MainActivity, arrayOf(savedPath), null, null)
+                                } catch (e: Exception) {}
+                                
+                                Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
+                            } else {
+                                tvProgressStatus.text = "Download Failed"
+                                tvProgressDetails.text = json.getString("message")
+                                Toast.makeText(this@MainActivity, "Error: ${json.getString("message")}", Toast.LENGTH_LONG).show()
+                            }
+                        } catch (e: Exception) {
                             progressBar.progress = 100
                             tvProgressStatus.text = "Download Complete!"
-                            tvProgressDetails.text = "Saved to:\n$savedPath"
-                            btnOpenFile.visibility = View.VISIBLE
-                            
-                            try {
-                                MediaScannerConnection.scanFile(this@MainActivity, arrayOf(savedPath), null, null)
-                            } catch (e: Exception) {}
-                            
+                            tvProgressDetails.text = "Saved to: " + downloadDir.absolutePath
                             Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
-                        } else {
-                            tvProgressStatus.text = "Download Failed"
-                            tvProgressDetails.text = json.getString("message")
-                            Toast.makeText(this@MainActivity, "Error: ${json.getString("message")}", Toast.LENGTH_LONG).show()
                         }
-                    } catch (e: Exception) {
-                        progressBar.progress = 100
-                        tvProgressStatus.text = "Download Complete!"
-                        tvProgressDetails.text = "Saved to: " + downloadDir.absolutePath
-                        Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {

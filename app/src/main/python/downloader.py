@@ -27,11 +27,12 @@ def get_video_info(url):
             formats_dict = {}
             for f in info.get('formats', []):
                 vcodec = f.get('vcodec', '')
+                acodec = f.get('acodec', '')
                 ext = f.get('ext', '')
                 height = f.get('height')
                 format_id = f.get('format_id')
                 
-                if vcodec != 'none' and height:
+                if vcodec != 'none' and acodec != 'none' and height:
                     res = f"{height}p"
                     score = 0
                     if 'avc' in vcodec: score += 10 
@@ -92,16 +93,13 @@ def download_video(url, output_path, format_id, progress_callback=None):
     if format_id == 'bestaudio':
         ydl_opts['format'] = 'bestaudio[ext=m4a]/bestaudio/best'
     else:
-        if format_id == '480':
-            ydl_opts['format'] = 'bestvideo[height<=480]+bestaudio/best[height<=480]'
-        elif format_id == 'best':
-            ydl_opts['format'] = 'bestvideo[vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best'
-        else:
-            ydl_opts['format'] = f"{format_id}+bestaudio[ext=m4a]/{format_id}+bestaudio/best"
+        # Avoid '+' since ffmpeg is not present on Android by default
+        ydl_opts['format'] = f"{format_id}/best"
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return json.dumps({"status": "success", "message": "Download complete"})
+            info_dict = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info_dict)
+        return json.dumps({"status": "success", "message": "Download complete", "filename": filename})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})

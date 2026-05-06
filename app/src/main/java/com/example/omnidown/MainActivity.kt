@@ -144,14 +144,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissionsAndDownload() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Android 10+ uses Scoped Storage (Downloads folder is usually accessible)
-            startDownload()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.addCategory("android.intent.category.DEFAULT")
+                    intent.data = android.net.Uri.parse(String.format("package:%s", applicationContext.packageName))
+                    startActivityForResult(intent, 200)
+                } catch (e: Exception) {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivityForResult(intent, 200)
+                }
+            } else {
+                startDownload()
+            }
         } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 100)
             } else {
                 startDownload()
+            }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 200) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (Environment.isExternalStorageManager()) {
+                    startDownload()
+                } else {
+                    Toast.makeText(this, "Allow all files access to save videos", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -177,6 +202,7 @@ class MainActivity : AppCompatActivity() {
         progressBar.isIndeterminate = false
         progressBar.progress = 0
         tvProgressStatus.text = "Downloading..."
+        tvProgressDetails.text = "Saving to: " + downloadDir.absolutePath
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -205,13 +231,28 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 
-                module.callAttr("download_video", currentUrl, downloadDir.absolutePath, selectedFormat.formatId, callback)
+                val resultJson = module.callAttr("download_video", currentUrl, downloadDir.absolutePath, selectedFormat.formatId, callback).toString()
                 
                 withContext(Dispatchers.Main) {
-                    progressBar.progress = 100
-                    tvProgressStatus.text = "Download Complete!"
-                    tvProgressDetails.text = "Saved to Downloads folder."
-                    Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
+                    try {
+                        val json = JSONObject(resultJson)
+                        if (json.getString("status") == "success") {
+                            val savedPath = json.optString("filename", downloadDir.absolutePath)
+                            progressBar.progress = 100
+                            tvProgressStatus.text = "Download Complete!"
+                            tvProgressDetails.text = "Saved to:\n$savedPath"
+                            Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
+                        } else {
+                            tvProgressStatus.text = "Download Failed"
+                            tvProgressDetails.text = json.getString("message")
+                            Toast.makeText(this@MainActivity, "Error: ${json.getString("message")}", Toast.LENGTH_LONG).show()
+                        }
+                    } catch (e: Exception) {
+                        progressBar.progress = 100
+                        tvProgressStatus.text = "Download Complete!"
+                        tvProgressDetails.text = "Saved to: " + downloadDir.absolutePath
+                        Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

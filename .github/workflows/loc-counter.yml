@@ -1,0 +1,53 @@
+name: Update LOC in README
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  update-loc:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # README එක අප්ඩේට් කරලා ආයෙ push කරන්න මේ permission එක අනිවාර්යයි
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cloc & jq
+        run: sudo apt-get install -y cloc jq
+
+      - name: Calculate Lines of Code
+        id: loc
+        run: |
+
+          TOTAL_LOC=$(cloc . --json --exclude-dir=.git,node_modules,target,build,dist | jq '.SUM.code')
+          echo "TOTAL_LOC=$TOTAL_LOC" >> $GITHUB_ENV
+          echo "Total lines of true code: $TOTAL_LOC"
+
+      - name: Update README.md
+        run: |
+
+          if [ ! -f README.md ]; then
+            echo "# Project Overview" > README.md
+            echo "Total Lines of Code: **$TOTAL_LOC** <!-- LOC -->" >> README.md
+          else
+
+            if grep -q "<!-- LOC -->" README.md; then
+              sed -i "s/.*<!-- LOC -->.*/Total Lines of Code: **$TOTAL_LOC** <!-- LOC -->/" README.md
+            else
+
+              echo "" >> README.md
+              echo "Total Lines of Code: **$TOTAL_LOC** <!-- LOC -->" >> README.md
+            fi
+          fi
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add README.md
+
+          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: update total lines of code" && git push)

@@ -32,26 +32,36 @@ def get_video_info(url):
                 ext = f.get('ext', '')
                 height = f.get('height')
                 format_id = f.get('format_id')
+                fps = f.get('fps', 0)
                 
                 if vcodec != 'none' and height:
-                    res = f"{height}p"
+                    res_key = f"{height}p"
+                    if fps and fps > 40:
+                        res_key += str(int(fps))
+                        
+                    has_audio = acodec != 'none'
+                    
                     score = 0
                     if 'avc' in vcodec: score += 10 
-                    if ext == 'mp4': score += 5      
+                    if ext == 'mp4': score += 5
+                    if has_audio: score += 2 # Prefer pre-merged formats if quality is same
                     
-                    if res not in formats_dict or score > formats_dict.get(res, {}).get('score', -1):
-                        has_audio = acodec != 'none'
-                        label = f"{res} [HD]" if not has_audio else f"{res}"
+                    if res_key not in formats_dict or score > formats_dict[res_key]['score']:
+                        label = res_key
+                        if height >= 2160: label = f"4K"
+                        elif height >= 1440: label = f"2K"
+                        elif height >= 720: label = f"{res_key} HD"
                         
-                        formats_dict[res] = {
+                        formats_dict[res_key] = {
                             'id': format_id,
                             'res': label,
+                            'height': height,
                             'ext': 'mp4',
                             'score': score,
                             'needs_merge': not has_audio
                         }
                         
-            sorted_formats = sorted(formats_dict.values(), key=lambda x: int(x['res'].split('p')[0]), reverse=True)
+            sorted_formats = sorted(formats_dict.values(), key=lambda x: x['height'], reverse=True)
             result['formats'] = [{'format_id': f['id'], 'resolution': f['res'], 'ext': f['ext'], 'needs_merge': f.get('needs_merge', False)} for f in sorted_formats]
             
             result['formats'].append({

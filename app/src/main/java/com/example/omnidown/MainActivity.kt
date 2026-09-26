@@ -311,9 +311,10 @@ class MainActivity : AppCompatActivity() {
                             
                             val vFile = File(downloadDir, tempVidName)
                             val aFile = File(downloadDir, tempAudName)
-                            val finalFile = File(downloadDir, "$title.mp4")
+                            val cleanTitle = title.replace("\"", "").replace("'", "")
+                            val finalFile = File(downloadDir, "$cleanTitle.mp4")
                             
-                            val session = com.arthenica.ffmpegkit.FFmpegKit.execute("-i \"${vFile.absolutePath}\" -i \"${aFile.absolutePath}\" -c copy \"${finalFile.absolutePath}\"")
+                            val session = com.arthenica.ffmpegkit.FFmpegKit.executeWithArguments(arrayOf("-y", "-i", vFile.absolutePath, "-i", aFile.absolutePath, "-c", "copy", finalFile.absolutePath))
                             
                             vFile.delete()
                             aFile.delete()
@@ -334,7 +335,7 @@ class MainActivity : AppCompatActivity() {
                             } else {
                                 withContext(Dispatchers.Main) {
                                     tvProgressStatus.text = "Merge Failed!"
-                                    tvProgressDetails.text = session.failStackTrace ?: "Unknown error"
+                                    tvProgressDetails.text = session.failStackTrace ?: session.allLogsAsString
                                     Toast.makeText(this@MainActivity, "Merge Failed", Toast.LENGTH_LONG).show()
                                 }
                             }
@@ -412,3 +413,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+

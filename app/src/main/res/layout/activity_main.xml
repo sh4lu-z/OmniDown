@@ -229,9 +229,7 @@
             android:padding="8dp"
             android:background="?android:attr/selectableItemBackground"
             android:clickable="true"
-            android:focusable="true"
-            android:padding="4dp"
-            android:textSize="12sp" />
+            android:focusable="true" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

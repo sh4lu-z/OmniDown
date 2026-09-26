@@ -251,8 +251,9 @@ class MainActivity : AppCompatActivity() {
         val selectedFormat = spinnerFormats.selectedItem as? FormatInfo ?: return
         
         // Define download path based on format type
-        val subFolder = if (selectedFormat.formatId == "bestaudio") "Audio" else "Video"
-        val downloadDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "OmniDown/$subFolder")
+        val isAudio = selectedFormat.formatId == "bestaudio"
+        val publicDir = if (isAudio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES
+        val downloadDir = File(Environment.getExternalStoragePublicDirectory(publicDir), "OmniDown")
         if (!downloadDir.exists()) downloadDir.mkdirs()
         
         cvVideoInfo.visibility = View.GONE

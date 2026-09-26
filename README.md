@@ -100,4 +100,4 @@ Distributed under the **MIT License**. See `LICENSE` for more information.
   Developed with ❤️ by <a href="https://github.com/sh4lu-z">sh4lu-z</a>
 </div>
 
-Total Lines of Code: **1735** <!-- LOC -->
+Total Lines of Code: **1736** <!-- LOC -->

@@ -114,7 +114,7 @@ class MainActivity : AppCompatActivity() {
 
         tvFooterText = findViewById(R.id.tvFooterText)
         tvFooterText.setOnClickListener {
-            val url = "https://sh4lu-z-projects.vercel.app/"
+            val url = "https://www.google.com/search?q=who+is+shaluka+gimhan"
             val intent = Intent(Intent.ACTION_VIEW)
             intent.data = Uri.parse(url)
             startActivity(intent)

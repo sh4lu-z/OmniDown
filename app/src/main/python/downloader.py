@@ -31,11 +31,23 @@ def get_video_info(url):
                 acodec = f.get('acodec', '')
                 ext = f.get('ext', '')
                 height = f.get('height')
+                width = f.get('width')
                 format_id = f.get('format_id')
                 fps = f.get('fps', 0)
                 
-                if vcodec != 'none' and height:
-                    res_key = f"{height}p"
+                if vcodec != 'none' and (height or width):
+                    res_base = f"{height}p"
+                    if width:
+                        if width >= 3840: res_base = "2160p"
+                        elif width >= 2560: res_base = "1440p"
+                        elif width >= 1920: res_base = "1080p"
+                        elif width >= 1280: res_base = "720p"
+                        elif width >= 854: res_base = "480p"
+                        elif width >= 640: res_base = "360p"
+                        elif width >= 426: res_base = "240p"
+                        elif width >= 256: res_base = "144p"
+                        
+                    res_key = res_base
                     if fps and fps > 40:
                         res_key += str(int(fps))
                         
@@ -44,24 +56,25 @@ def get_video_info(url):
                     score = 0
                     if 'avc' in vcodec: score += 10 
                     if ext == 'mp4': score += 5
-                    if has_audio: score += 2 # Prefer pre-merged formats if quality is same
+                    if has_audio: score += 2 
                     
                     if res_key not in formats_dict or score > formats_dict[res_key]['score']:
                         label = res_key
-                        if height >= 2160: label = f"4K"
-                        elif height >= 1440: label = f"2K"
-                        elif height >= 720: label = f"{res_key} HD"
+                        cmp_val = width if width else (height or 0)
+                        if cmp_val >= 3840: label = f"4K"
+                        elif cmp_val >= 2560: label = f"2K"
+                        elif cmp_val >= 1280: label = f"{res_key} HD"
                         
                         formats_dict[res_key] = {
                             'id': format_id,
                             'res': label,
-                            'height': height,
+                            'sort_val': cmp_val,
                             'ext': 'mp4',
                             'score': score,
                             'needs_merge': not has_audio
                         }
                         
-            sorted_formats = sorted(formats_dict.values(), key=lambda x: x['height'], reverse=True)
+            sorted_formats = sorted(formats_dict.values(), key=lambda x: x['sort_val'], reverse=True)
             result['formats'] = [{'format_id': f['id'], 'resolution': f['res'], 'ext': f['ext'], 'needs_merge': f.get('needs_merge', False)} for f in sorted_formats]
             
             result['formats'].append({

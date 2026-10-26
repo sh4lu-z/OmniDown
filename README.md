@@ -1,3 +1,12 @@
+# ⚠️ Repository Moved
+
+> **Important:** This repository has moved to **[Syntiox/Vynex-Android](https://github.com/Syntiox/Vynex-Android)**.
+> All future development, issues, and releases will be maintained there.
+>
+> 👉 **New Repository:** [https://github.com/Syntiox/Vynex-Android](https://github.com/Syntiox/Vynex-Android)
+
+---
+
 # 📥 OmniDown - Ultimate Android Media Downloader
 
 ![Android](https://img.shields.io/badge/Platform-Android-brightgreen.svg)
